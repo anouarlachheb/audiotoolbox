@@ -25,232 +25,110 @@
             border: 1px solid #374151;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        /* Custom spinner for loading states */
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid #6366f1; /* Indigo */
-            border-radius: 50%;
-            width: 1.5rem;
-            height: 1.5rem;
-            animation: spin 1s linear infinite;
-            display: none;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* Style for the canvas container to enable relative positioning for labels */
-        #plot-container {
-            position: relative;
-        }
     </style>
 </head>
-<body class="p-4 md:p-8 text-gray-100 min-h-screen">
+<body class="p-4 md:p-8 min-h-screen text-gray-100">
 
-    <header class="text-center mb-8">
-        <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-400 mb-2">PDM & WAV Processing Toolbox</h1>
-        <p class="text-gray-400">Sigma-Delta Modulation, Decimation, and Audio Conversion Utilities</p>
-    </header>
+    <div class="w-full max-w-6xl mx-auto space-y-8">
+        <h1 class="text-4xl font-extrabold text-indigo-400 mb-6 text-center">
+            PDM & WAV Processing Toolbox
+        </h1>
+        <p id="status-message" class="text-center text-lg font-medium h-6"></p>
 
-    <!-- Status and Error Message Area -->
-    <div id="status-message" class="mb-6 p-3 rounded-lg text-center font-medium transition-all" style="display: none;"></div>
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- SECTION 1: Generate PDM Binary & Visualize Signal -->
-        <section class="lg:col-span-2 section-card p-6 rounded-xl space-y-4">
-            <h2 class="text-2xl font-semibold border-b border-indigo-500/50 pb-2 text-indigo-300">1. Generate PDM Binary & Visualize Signal</h2>
-
-            <!-- Signal Type and Generation Controls -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="signalType" class="block text-sm font-medium text-gray-400">Source Signal</label>
-                    <select id="signalType" onchange="toggleSignalInputs()" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="sine">Synthetic Sine Wave</option>
-                        <option value="square">Synthetic Square Wave</option>
-                        <option value="sawtooth">Synthetic Sawtooth Wave</option>
-                        <option value="noise">Synthetic White Noise</option>
-                        <option value="mic">Live Microphone Input</option>
+            <!-- PDM Signal Generation -->
+            <div class="section-card rounded-xl p-6 space-y-4">
+                <h2 class="text-2xl font-bold text-indigo-300 border-b border-indigo-500/50 pb-2 mb-4">
+                    1. Generate PDM Binary
+                </h2>
+                <div class="space-y-3">
+                    <label for="signalType" class="block text-sm font-medium text-gray-300">Signal Type</label>
+                    <select id="signalType" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="sine">Sine Wave</option>
+                        <option value="square">Square Wave</option>
+                        <option value="noise">White Noise</option>
                     </select>
                 </div>
-
-                <div id="synthetic-controls" class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label for="signalFrequency" class="block text-sm font-medium text-gray-400">Freq (Hz)</label>
-                        <input type="number" id="signalFrequency" value="440" min="1" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <!-- NEW Amplitude Input -->
-                    <div>
-                        <label for="signalAmplitude" class="block text-sm font-medium text-gray-400">Amp (0-1)</label>
-                        <input type="number" id="signalAmplitude" value="0.5" min="0.01" max="1.0" step="0.01" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <!-- NEW Phase Input (in radians) -->
-                    <div>
-                        <label for="signalPhase" class="block text-sm font-medium text-gray-400">Phase (rad)</label>
-                        <input type="number" id="signalPhase" value="0" step="0.1" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
+                <div class="space-y-3">
+                    <label for="signalFreq" class="block text-sm font-medium text-gray-300">Signal Frequency (Hz)</label>
+                    <input type="number" id="signalFreq" value="1000" min="1" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-            </div>
-
-            <!-- Global PDM Controls -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="pdmRate" class="block text-sm font-medium text-gray-400">Target PDM Sample Rate (Hz)</label>
-                    <input type="number" id="pdmRate" value="3072000" min="1" step="1000" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                <div class="space-y-3">
+                    <label for="pdmRate" class="block text-sm font-medium text-gray-300">PDM Sample Rate (Hz)</label>
+                    <input type="number" id="pdmRate" value="3076864" min="100000" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <div id="duration-control">
-                    <label for="duration" class="block text-sm font-medium text-gray-400">Duration (seconds)</label>
-                    <input type="number" id="duration" value="0.1" min="0.001" step="0.1" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
+                <div class="space-y-3">
+                    <label for="duration" class="block text-sm font-medium text-gray-300">Duration (seconds)</label>
+                    <input type="number" id="duration" value="1.0" min="0.1" step="0.1" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                 <div>
-                    <label for="plotSampleLimit" class="block text-sm font-medium text-gray-400">Plot Samples Limit</label>
-                    <input type="number" id="plotSampleLimit" value="2000" min="10" step="10" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-            </div>
-
-            <!-- Action Buttons and Mic Status -->
-            <div class="flex flex-col sm:flex-row gap-4 pt-2">
-                <button onclick="handleGeneratePDM()" id="generateBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md shadow-indigo-500/50 flex justify-center items-center">
-                    <span id="generateBtnText">Generate & Convert to PDM</span>
-                    <div id="spinner1" class="spinner ml-3"></div>
-                </button>
-                <button onclick="stopRecording(true)" id="stopBtn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md shadow-red-500/50" style="display: none;">
-                    Stop Recording & Convert PDM
+                <button onclick="handleGeneratePDM()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-md">
+                    Generate & Download PDM (.bin)
                 </button>
             </div>
-            
-            <!-- Plotting Area -->
-            <div class="mt-6">
-                <h3 class="text-xl font-semibold mb-2 text-indigo-300">Source Signal Visualization (First N Samples)</h3>
-                <p id="plotInfo" class="text-sm text-gray-500 mb-2"></p>
-                <div id="plot-container" class="bg-gray-800 rounded-lg border border-gray-700 p-2">
-                    <canvas id="signalPlot" class="w-full"></canvas>
+
+            <!-- PDM to WAV Conversion -->
+            <div class="section-card rounded-xl p-6 space-y-4">
+                <h2 class="text-2xl font-bold text-indigo-300 border-b border-indigo-500/50 pb-2 mb-4">
+                    2. PDM Binary to WAV
+                </h2>
+                <div class="space-y-3">
+                    <label for="pdmFile" class="block text-sm font-medium text-gray-300">Upload PDM Binary (.bin)</label>
+                    <input type="file" id="pdmFile" accept=".bin, .pdm, application/octet-stream" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-            </div>
-
-        </section>
-
-        <!-- Right Column (WAV/PDM File Operations) -->
-        <div class="lg:col-span-1 space-y-6">
-
-             <!-- SECTION 2: PDM Binary to WAV -->
-            <section class="section-card p-6 rounded-xl space-y-4">
-                <h2 class="text-2xl font-semibold border-b border-indigo-500/50 pb-2 text-indigo-300">2. PDM Binary to WAV (Decimation)</h2>
-                
-                <div>
-                    <label for="pdmBinaryFile" class="block text-sm font-medium text-gray-400">Upload PDM Binary (.bin) File</label>
-                    <input type="file" id="pdmBinaryFile" accept=".bin" class="mt-1 block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 transition duration-150">
+                <div class="space-y-3">
+                    <label for="decimationFactor" class="block text-sm font-medium text-gray-300">Decimation Factor (R)</label>
+                    <input type="number" id="decimationFactor" value="64" min="2" step="2" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-xs text-gray-400">PCM Rate = PDM Rate / R</p>
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="decimationFactor" class="block text-sm font-medium text-gray-400">Decimation Factor (R)</label>
-                        <input type="number" id="decimationFactor" value="64" min="1" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label for="originalPDMrate" class="block text-sm font-medium text-gray-400">Original PDM Rate (Hz)</label>
-                        <input type="number" id="originalPDMrate" value="3072000" min="1" step="1000" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
+                <div class="space-y-3">
+                    <label for="inputPdmRate" class="block text-sm font-medium text-gray-300">Original PDM Rate (Hz)</label>
+                    <input type="number" id="inputPdmRate" value="3076864" min="100000" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-
-                <!-- NEW: Decimation Filter Type -->
-                <div>
-                    <label for="decimationFilterType" class="block text-sm font-medium text-gray-400">Decimation Filter Type</label>
-                    <select id="decimationFilterType" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="boxcar">Boxcar/Sinc (1st Order Simplicity)</option>
-                        <option value="linear_phase_fir">Linear Phase FIR (Placeholder for Quality)</option>
-                        <option value="bypass_pcm_downsample">Bypass (Simple Downsample)</option>
+                <!-- NEW BIT DEPTH SELECTION -->
+                <div class="space-y-3">
+                    <label for="outputBitDepth" class="block text-sm font-medium text-gray-300">PCM Output Bit Depth</label>
+                    <select id="outputBitDepth" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="16">16-bit Signed Integer (PCM)</option>
+                        <option value="32f">32-bit Floating Point (IEEE Float)</option>
                     </select>
                 </div>
-                <!-- END NEW -->
-
-                 <div>
-                    <label for="pcmBitDepth" class="block text-sm font-medium text-gray-400">PCM Output Bit Depth</label>
-                    <select id="pcmBitDepth" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="16">16-bit Integer (Standard)</option>
-                        <option value="24">24-bit Integer</option>
-                        <option value="32F">32-bit Float</option>
-                        <option value="8">8-bit Integer (Unsigned)</option>
-                    </select>
-                </div>
-
-                <button onclick="pdmBinaryToWav()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md shadow-green-500/50 flex justify-center items-center">
-                    <span id="pdmToWavBtnText">Convert to WAV</span>
-                     <div id="spinner2" class="spinner ml-3"></div>
+                <button onclick="handlePdmToWav()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-md">
+                    Convert & Download WAV
                 </button>
-            </section>
+            </div>
 
-             <!-- SECTION 3: WAV (PCM) to PDM -->
-            <section class="section-card p-6 rounded-xl space-y-4">
-                <h2 class="text-2xl font-semibold border-b border-indigo-500/50 pb-2 text-indigo-300">3. WAV (PCM) to PDM</h2>
-                
-                <div>
-                    <label for="wavToPdmFile" class="block text-sm font-medium text-gray-400">Upload WAV File (.wav)</label>
-                    <input type="file" id="wavToPdmFile" accept=".wav" class="mt-1 block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 transition duration-150">
+            <!-- WAV to PDM Conversion -->
+            <div class="section-card rounded-xl p-6 space-y-4">
+                <h2 class="text-2xl font-bold text-indigo-300 border-b border-indigo-500/50 pb-2 mb-4">
+                    3. WAV (PCM) to PDM
+                </h2>
+                <div class="space-y-3">
+                    <label for="wavFile" class="block text-sm font-medium text-gray-300">Upload WAV File (.wav)</label>
+                    <input type="file" id="wavFile" accept=".wav, audio/wav" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="oversamplingRatio" class="block text-sm font-medium text-gray-400">Oversampling Ratio (OSR)</label>
-                        <input type="number" id="oversamplingRatio" value="64" min="1" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <!-- UPDATED: Oversampling Filter Type with explicit Bypass label -->
-                    <div>
-                        <label for="oversamplingFilterType" class="block text-sm font-medium text-gray-400">Oversampling Filter Type</label>
-                        <select id="oversamplingFilterType" class="mt-1 block w-full rounded-lg bg-gray-700 border-gray-600 text-white p-2.5 focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="nearest_neighbor">Bypass (Nearest Neighbor / ZOH)</option>
-                            <option value="linear_interpolation">Linear Interpolation</option>
-                        </select>
-                    </div>
-                    <!-- END UPDATED -->
+                <div class="space-y-3">
+                    <label for="osr" class="block text-sm font-medium text-gray-300">Oversampling Ratio (OSR)</label>
+                    <input type="number" id="osr" value="64" min="2" step="2" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-xs text-gray-400">PDM Rate = WAV Rate * OSR</p>
                 </div>
-
-                <button onclick="wavToPdm()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md shadow-yellow-500/50 flex justify-center items-center">
-                    <span id="wavToPdmBtnText">Convert to PDM</span>
-                    <div id="spinner3" class="spinner ml-3"></div>
+                <button onclick="handleWavToPdm()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-md">
+                    Convert & Download PDM (.bin)
                 </button>
-            </section>
+            </div>
+
         </div>
+    </div>
 
-    </main>
-    
+    <!-- JavaScript Implementation -->
     <script>
-        // --- Global State and Constants ---
-        let audioContext = null;
-        let mediaStream = null;
-        let recorder = null;
-        let recordingBuffer = null;
-        const RESAMPLE_RATE = 48000; // Fixed rate for synthetic signal generation
+        const statusMessage = document.getElementById('status-message');
 
-        // --- Utility Functions ---
-
-        /** Sets the status message with color coding for success/error. */
-        function setStatus(message, isError = false) {
-            const statusDiv = document.getElementById('status-message');
-            statusDiv.textContent = message;
-            statusDiv.style.display = 'block';
-            if (isError) {
-                statusDiv.className = 'mb-6 p-3 rounded-lg text-center font-medium bg-red-900/50 text-red-300 transition-all';
-            } else {
-                statusDiv.className = 'mb-6 p-3 rounded-lg text-center font-medium bg-indigo-900/50 text-indigo-300 transition-all';
-            }
-        }
-        
-        /** Shows or hides a spinner element. */
-        function toggleSpinner(id, show) {
-            const spinner = document.getElementById(id);
-            const buttonText = spinner.previousElementSibling;
-            if (show) {
-                spinner.style.display = 'block';
-                buttonText.classList.add('opacity-0');
-            } else {
-                spinner.style.display = 'none';
-                buttonText.classList.remove('opacity-0');
-            }
-        }
-
-        /** Creates a data URI link to download a file. */
-        function downloadFile(data, mimeType, filename) {
+        /**
+         * Generic file downloader function.
+         */
+        function downloadFile(data, filename, mimeType) {
             const blob = new Blob([data], { type: mimeType });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -262,778 +140,368 @@
             URL.revokeObjectURL(url);
         }
 
-        /** Simple 1st-order Sigma-Delta Modulator (SDM) / Noise Shaper */
-        function sigmaDeltaModulation(pcmData, osr) {
-            const M = osr;
-            const N = pcmData.length;
-            const pdmLength = N * M;
-            const pdmArray = new Uint8Array(pdmLength);
-            let accumulator = 0;
-
-            for (let i = 0; i < N; i++) {
-                const pcmSample = pcmData[i]; // PCM sample is normalized between -1.0 and 1.0
-
-                // Resample (Zero-order hold for simplicity) and modulate
-                for (let j = 0; j < M; j++) {
-                    // Integrator input (error signal)
-                    const input = pcmSample - accumulator;
-                    
-                    // Comparator / Quantizer: Determine the PDM bit (1 or 0)
-                    let outputBit = 0;
-                    if (input > 0) {
-                        outputBit = 1;
-                    } 
-                    
-                    // Quantization error
-                    const error = outputBit - pcmSample;
-                    
-                    // Integrator update (1st order)
-                    accumulator += error; 
-
-                    // Store PDM bit (0 or 1)
-                    pdmArray[i * M + j] = outputBit; 
-                }
-            }
-            return pdmArray;
-        }
-
-        /** Converts the PDM bit stream into a packed binary stream (8 bits per byte). */
-        function packPDM(pdmBits) {
-            const packedLength = Math.ceil(pdmBits.length / 8);
-            const packedArray = new Uint8Array(packedLength);
-
-            for (let i = 0; i < pdmBits.length; i++) {
-                const byteIndex = Math.floor(i / 8);
-                const bitPosition = 7 - (i % 8); // Store MSB first in the byte
-                
-                if (pdmBits[i] === 1) {
-                    packedArray[byteIndex] |= (1 << bitPosition);
-                }
-            }
-            return packedArray;
-        }
-
-        /** Generates a synthetic signal (PCM format, -1.0 to 1.0). */
-        function generateSyntheticSignal(rate, duration, type, frequency, amplitude, phase) {
-            const numSamples = Math.floor(rate * duration);
-            const data = new Float32Array(numSamples);
-            const A = parseFloat(amplitude);
-            const F = parseFloat(frequency);
-            const P = parseFloat(phase);
-
-            if (type === 'noise') {
-                for (let i = 0; i < numSamples; i++) {
-                    // White noise, normalized to +/- amplitude
-                    data[i] = (Math.random() * 2 - 1) * A;
-                }
+        /**
+         * Sets the application status message.
+         */
+        function setStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            if (isError) {
+                statusMessage.className = 'text-center text-red-400 font-medium h-6';
+                console.error(message);
             } else {
-                for (let i = 0; i < numSamples; i++) {
-                    const t = i / rate;
-                    const normalizedTime = 2 * Math.PI * F * t + P;
+                statusMessage.className = 'text-center text-green-400 font-medium h-6';
+                console.log(message);
+            }
+        }
+        
+        // --- 1. PDM SIGNAL GENERATION (AND SAVE TO BINARY) ---
 
-                    switch (type) {
-                        case 'sine':
-                            data[i] = A * Math.sin(normalizedTime);
-                            break;
-                        case 'square':
-                            // Simple square wave approximation (sign function)
-                            data[i] = A * (Math.sign(Math.sin(normalizedTime)) || 0);
-                            break;
-                        case 'sawtooth':
-                            // Simple sawtooth wave
-                            data[i] = A * (2 * ((normalizedTime / (2 * Math.PI)) % 1) - 1);
-                            break;
-                        default:
-                            data[i] = 0;
-                    }
+        /**
+         * Generates analog audio samples based on the signal type.
+         * @param {string} type - 'sine', 'square', or 'noise'.
+         * @param {number} freq - Signal frequency.
+         * @param {number} rate - Sample rate (PDM rate).
+         * @param {number} duration - Duration in seconds.
+         * @returns {Float32Array} Array of samples between -1.0 and 1.0.
+         */
+        function generateAnalogSignal(type, freq, rate, duration) {
+            const numSamples = Math.floor(rate * duration);
+            const samples = new Float32Array(numSamples);
+            
+            for (let i = 0; i < numSamples; i++) {
+                const t = i / rate; // time
+                const amplitude = 0.5; // Use 0.5 to avoid clipping in the SDM
+                
+                switch (type) {
+                    case 'sine':
+                        samples[i] = amplitude * Math.sin(2 * Math.PI * freq * t);
+                        break;
+                    case 'square':
+                        // Simple square wave approximation using sine phase
+                        samples[i] = Math.sign(Math.sin(2 * Math.PI * freq * t)) * amplitude;
+                        break;
+                    case 'noise':
+                        // White Noise (between -amplitude and +amplitude)
+                        samples[i] = (Math.random() * 2 - 1) * amplitude;
+                        break;
+                    default:
+                        samples[i] = 0;
+                        break;
                 }
             }
-            return data;
+            return samples;
         }
 
         /**
-         * Resamples PCM data from sourceRate to targetRate using selected interpolation/filtering.
-         * Note: For real-world use, a proper polyphase FIR filter should be used.
+         * Converts analog PCM samples to a raw PDM bitstream using a 1st-order Sigma-Delta Modulator.
+         * This logic applies to PDM Generation (1) and WAV to PDM Conversion (3).
+         * @param {Float32Array} analogSamples - Input PCM samples (-1.0 to 1.0).
+         * @returns {ArrayBuffer} Raw PDM bitstream packed into bytes.
          */
-        function resamplePCM(sourceData, sourceRate, targetRate, filterType = 'nearest_neighbor') {
-            if (sourceRate === targetRate) {
-                return sourceData;
-            }
-
-            const ratio = sourceRate / targetRate;
-            const targetLength = Math.floor(sourceData.length / ratio);
-            const targetData = new Float32Array(targetLength);
-
-            for (let i = 0; i < targetLength; i++) {
-                const sourceIndexFloat = i * ratio;
-                let sample;
-
-                if (filterType === 'linear_interpolation') {
-                    // Linear Interpolation
-                    const index1 = Math.floor(sourceIndexFloat);
-                    const index2 = Math.min(index1 + 1, sourceData.length - 1);
-                    const fraction = sourceIndexFloat - index1;
-
-                    const val1 = sourceData[index1];
-                    const val2 = sourceData[index2];
-                    
-                    // Linear interpolation: y = y1 + fraction * (y2 - y1)
-                    sample = val1 + fraction * (val2 - val1);
-
-                } else { // default to 'nearest_neighbor' (Bypass / ZOH)
-                    // Nearest Neighbor Interpolation (Zero-Order Hold)
-                    const sourceIndex = Math.min(Math.round(sourceIndexFloat), sourceData.length - 1);
-                    sample = sourceData[sourceIndex];
-                }
-                
-                targetData[i] = sample;
-            }
-            return targetData;
-        }
-
-
-        // --- Plotting Logic (Canvas) ---
-
-        /** Draws the given PCM signal data on the canvas. */
-        function plotSignal(data, rate, isPDM = false) {
-            const canvas = document.getElementById('signalPlot');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size based on container for responsiveness (Tailwind `w-full`)
-            const container = document.getElementById('plot-container');
-            canvas.width = container.clientWidth;
-            canvas.height = 300; 
-
-            const width = canvas.width;
-            const height = canvas.height;
-            const plotLimit = parseInt(document.getElementById('plotSampleLimit').value, 10);
-            
-            // Determine the data to plot (limited by plotLimit)
-            const plotData = data.slice(0, plotLimit);
-            const dataLength = plotData.length;
-            
-            const infoDiv = document.getElementById('plotInfo');
-            if (dataLength === 0) {
-                 infoDiv.textContent = "No signal data to plot.";
-                 ctx.clearRect(0, 0, width, height);
-                 return;
-            } else {
-                 const timeSpan = (dataLength / rate) * 1000; // in milliseconds
-                 infoDiv.textContent = isPDM 
-                    ? `PDM Bits: ${dataLength} plotted over ${timeSpan.toFixed(2)}ms (PDM Rate: ${rate.toLocaleString()} Hz)`
-                    : `PCM Samples: ${dataLength} plotted over ${timeSpan.toFixed(2)}ms (PCM Rate: ${rate.toLocaleString()} Hz)`;
-            }
-
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw background and axes
-            ctx.fillStyle = '#1f2937'; // Background color from section-card
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.strokeStyle = '#374151'; // Axis color
-            ctx.lineWidth = 1;
-            
-            // Center line (Y=0)
-            const center = height / 2;
-            ctx.beginPath();
-            ctx.moveTo(0, center);
-            ctx.lineTo(width, center);
-            ctx.stroke();
-            
-            // 1.0 and -1.0 lines
-            ctx.strokeStyle = '#4b5563'; 
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(0, height * 0.1);
-            ctx.lineTo(width, height * 0.1);
-            ctx.moveTo(0, height * 0.9);
-            ctx.lineTo(width, height * 0.9);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-
-            // Draw the signal
-            ctx.beginPath();
-            ctx.strokeStyle = '#6366f1'; // Signal color (Indigo)
-            ctx.lineWidth = isPDM ? 0.5 : 2; // Thicker line for PCM, thin for PDM
-            
-            const stepX = width / dataLength;
-
-            for (let i = 0; i < dataLength; i++) {
-                const x = i * stepX;
-                let y;
-
-                if (isPDM) {
-                    // PDM is 0 or 1, map to -1.0 to 1.0 range for visual
-                    const bit = plotData[i];
-                    // Map 0 to bottom (0.9H) and 1 to top (0.1H)
-                    y = height * (1 - bit * 0.8 - 0.1); // 0 -> 0.9H, 1 -> 0.1H
-                } else {
-                    // PCM is -1.0 to 1.0
-                    const sample = plotData[i];
-                    // Map -1.0 to bottom (0.9H) and 1.0 to top (0.1H)
-                    y = center - (sample * center * 0.8); 
-                }
-
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.stroke();
-        }
-
-        // --- Core PDM/PCM Conversion Functions ---
-
-        /** Generic function to handle PCM to PDM conversion and file download. */
-        async function convertPCMToPDM(pcmData, pcmRate, filenamePrefix = 'pdm_output') {
-             // Calculate OSR based on target PDM rate and source PCM rate
-            const targetPDMrate = parseInt(document.getElementById('pdmRate').value, 10);
-            const oversamplingFilterType = document.getElementById('oversamplingFilterType')?.value || 'nearest_neighbor';
-
-            const OSR = Math.round(targetPDMrate / pcmRate);
-            
-            if (OSR < 1) {
-                setStatus(`PDM rate (${targetPDMrate} Hz) must be greater than or equal to the source PCM rate (${pcmRate} Hz).`, true);
-                return;
-            }
-
-            setStatus(`Processing... Resampling PCM to ${targetPDMrate} Hz equivalent PCM (OSR=${OSR}) using ${oversamplingFilterType}.`);
-
-            // 1. Resample PCM data to a higher rate (OSR * PCM Rate)
-            const resampledData = resamplePCM(pcmData, pcmRate, targetPDMrate, oversamplingFilterType);
-            
-            // 2. Perform Sigma-Delta Modulation (PDM generation)
-            setStatus(`Processing... Performing 1st-order Sigma-Delta Modulation.`);
-            const pdmBits = sigmaDeltaModulation(resampledData, 1); // OSR is handled by resampling
-            
-            // 3. Pack PDM bits into bytes
-            setStatus(`Processing... Packing PDM bits into binary stream.`);
-            const pdmBinary = packPDM(pdmBits);
-
-            // 4. Download files
-            downloadFile(pdmBinary, 'application/octet-stream', `${filenamePrefix}_OSR${OSR}.bin`);
-            setStatus(`PDM Binary File saved: ${filenamePrefix}_OSR${OSR}.bin (Size: ${pdmBinary.byteLength} bytes).`);
-
-            // 5. Plot the original PCM signal
-            // Plot the original PCM data (or the raw mic data if available)
-            plotSignal(pcmData, pcmRate, false);
-            
-            return pdmBinary;
-        }
-
-        /** Handles synthetic signal generation and Mic setup. */
-        async function handleGeneratePDM() {
-            const signalType = document.getElementById('signalType').value;
-            toggleSpinner('spinner1', true);
-            setStatus('Starting signal processing...');
-
-            try {
-                if (signalType === 'mic') {
-                    await startRecording();
-                } else {
-                    const F = document.getElementById('signalFrequency').value;
-                    const A = document.getElementById('signalAmplitude').value;
-                    const P = document.getElementById('signalPhase').value;
-                    const duration = parseFloat(document.getElementById('duration').value);
-                    
-                    if (duration <= 0) {
-                         setStatus("Duration must be a positive number.", true);
-                         toggleSpinner('spinner1', false);
-                         return;
-                    }
-
-                    // 1. Generate Synthetic PCM signal (at a fixed RESAMPLE_RATE)
-                    const pcmData = generateSyntheticSignal(RESAMPLE_RATE, duration, signalType, F, A, P);
-                    
-                    // 2. Convert PCM to PDM and save/plot
-                    await convertPCMToPDM(pcmData, RESAMPLE_RATE, `synth_${signalType}`);
-                }
-            } catch (error) {
-                setStatus(`An error occurred: ${error.message}`, true);
-                toggleSpinner('spinner1', false);
-            } finally {
-                if (signalType !== 'mic') {
-                    toggleSpinner('spinner1', false);
-                }
-            }
-        }
-
-        /** Handles PDM Binary upload and conversion to WAV (Decimation). */
-        async function pdmBinaryToWav() {
-            const fileInput = document.getElementById('pdmBinaryFile');
-            const decimationFactor = parseInt(document.getElementById('decimationFactor').value, 10);
-            const originalPDMrate = parseInt(document.getElementById('originalPDMrate').value, 10);
-            const pcmBitDepth = document.getElementById('pcmBitDepth').value;
-            const decimationFilterType = document.getElementById('decimationFilterType').value;
-
-            if (!fileInput.files.length) {
-                setStatus("Please upload a PDM Binary (.bin) file.", true);
-                return;
-            }
-
-            if (decimationFactor <= 0 || originalPDMrate <= 0) {
-                 setStatus("Decimation Factor and Original PDM Rate must be positive numbers.", true);
-                 return;
-            }
-            
-            toggleSpinner('spinner2', true);
-            setStatus(`Converting PDM to WAV (R=${decimationFactor}, PDM Rate=${originalPDMrate} Hz) using ${decimationFilterType}...`);
-
-            try {
-                const pdmArrayBuffer = await fileInput.files[0].arrayBuffer();
-                const pdmBinary = new Uint8Array(pdmArrayBuffer);
-                
-                // 1. Unpack PDM data to a bit array
-                const pdmBits = unpackPDM(pdmBinary);
-
-                // 2. Perform Decimation (using selected filter)
-                const pcmData = decimatePDM(pdmBits, decimationFactor, decimationFilterType);
-                const pcmRate = originalPDMrate / decimationFactor;
-                
-                setStatus(`Conversion successful. Output PCM Rate: ${pcmRate.toLocaleString()} Hz.`);
-                
-                // 3. Write WAV header and data
-                const wavBuffer = encodeWAV(pcmData, pcmRate, pcmBitDepth);
-
-                // 4. Download file
-                downloadFile(wavBuffer, 'audio/wav', `decimated_R${decimationFactor}_${originalPDMrate/decimationFactor}Hz.wav`);
-                setStatus(`WAV file saved successfully! (Rate: ${pcmRate} Hz, Depth: ${pcmBitDepth})`);
-
-                // 5. Plot the PDM bit stream (before decimation)
-                plotSignal(pdmBits, originalPDMrate, true);
-
-            } catch (error) {
-                setStatus(`Error during PDM to WAV conversion: ${error.message}`, true);
-            }
-            toggleSpinner('spinner2', false);
-        }
-        
-        /** Handles WAV (PCM) upload and conversion to PDM. */
-        async function wavToPdm() {
-            const fileInput = document.getElementById('wavToPdmFile');
-            const OSR = parseInt(document.getElementById('oversamplingRatio').value, 10);
-
-            if (!fileInput.files.length) {
-                setStatus("Please upload a WAV (.wav) file.", true);
-                return;
-            }
-            if (OSR < 1) {
-                 setStatus("Oversampling Ratio (OSR) must be 1 or greater.", true);
-                 return;
-            }
-            
-            toggleSpinner('spinner3', true);
-            setStatus(`Reading WAV file...`);
-
-            try {
-                const wavArrayBuffer = await fileInput.files[0].arrayBuffer();
-                
-                // 1. Decode WAV to PCM Float32Array
-                const { pcmData: decodedData, sampleRate: sourceRate } = decodeWAV(wavArrayBuffer);
-                
-                // WAV files can have multiple channels, only use the first channel
-                const sourceData = decodedData[0];
-                const pdmRate = sourceRate * OSR;
-                
-                document.getElementById('pdmRate').value = pdmRate; // Update PDM Rate box for consistency
-
-                // Use the new general function which handles resampling and conversion
-                await convertPCMToPDM(sourceData, sourceRate, `encoded_wav_osr${OSR}`);
-
-            } catch (error) {
-                setStatus(`Error during WAV to PDM conversion: ${error.message}`, true);
-            }
-            toggleSpinner('spinner3', false);
-        }
-
-        /** Unpacks the PDM binary stream back into a 0/1 bit array. */
-        function unpackPDM(pdmBinary) {
-            const totalBits = pdmBinary.length * 8;
-            const pdmBits = new Uint8Array(totalBits);
-            let bitIndex = 0;
-
-            for (let i = 0; i < pdmBinary.length; i++) {
-                const byte = pdmBinary[i];
-                for (let j = 7; j >= 0; j--) { // Unpack MSB first (matching the packing order)
-                    pdmBits[bitIndex++] = (byte >> j) & 1;
-                }
-            }
-            return pdmBits;
-        }
-
-        /** Performs PDM decimation using the selected filter type. */
-        function decimatePDM(pdmBits, R, filterType) {
-            const numSamples = Math.floor(pdmBits.length / R);
-            const pcmData = new Float32Array(numSamples);
-
-            if (filterType === 'bypass_pcm_downsample') {
-                // Bypass: Simple downsampling of PDM bits converted to +/-1.0 PCM.
-                for (let i = 0; i < numSamples; i++) {
-                    const index = i * R;
-                    // Map 0 -> -1.0, 1 -> +1.0
-                    pcmData[i] = pdmBits[index] * 2.0 - 1.0; 
-                }
-                return pcmData;
-            }
-
-            // Default: Boxcar Filter (Moving Average)
-            // 'boxcar' and 'linear_phase_fir' (placeholder) use this simple method.
-            for (let i = 0; i < numSamples; i++) {
-                let sum = 0;
-                const start = i * R;
-                const end = start + R;
-
-                // Boxcar filter (simple moving average/integration)
-                for (let j = start; j < end; j++) {
-                    sum += pdmBits[j];
-                }
-
-                // Correct PDM (0/1) accumulated sum ([0, R]) to normalized PCM ([-1.0, 1.0])
-                // Output = (sum / R) * 2 - 1
-                pcmData[i] = (sum / R) * 2.0 - 1.0;
-            }
-            
-            // Clamping is necessary to ensure the output remains within the valid range
-            for (let i = 0; i < pcmData.length; i++) {
-                pcmData[i] = Math.max(-1.0, Math.min(1.0, pcmData[i]));
-            }
-
-            return pcmData;
-        }
-
-        // --- WAV Encoding and Decoding (Minimal Implementation) ---
-
-        /** Encodes normalized Float32Array PCM data into a WAV file ArrayBuffer. */
-        function encodeWAV(pcmData, sampleRate, bitDepthType) {
-            const numChannels = 1;
-            
-            // Determine size and format
-            let bytesPerSample, format;
-            if (bitDepthType === '16') {
-                bytesPerSample = 2;
-                format = 1; // PCM
-            } else if (bitDepthType === '24') {
-                bytesPerSample = 3;
-                format = 1; // PCM
-            } else if (bitDepthType === '32F') {
-                bytesPerSample = 4;
-                format = 3; // Float
-            } else if (bitDepthType === '8') {
-                bytesPerSample = 1;
-                format = 1; // PCM
-            } else {
-                throw new Error("Unsupported PCM bit depth type: " + bitDepthType);
-            }
-
-            const bitDepth = bytesPerSample * 8;
-            const blockAlign = numChannels * bytesPerSample;
-            const byteRate = sampleRate * blockAlign;
-            const dataLength = pcmData.length * bytesPerSample;
-            const buffer = new ArrayBuffer(44 + dataLength);
+        function samplesToPDM(analogSamples) {
+            let integrator = 0.0;
+            const numSamples = analogSamples.length;
+            const numBytes = Math.ceil(numSamples / 8);
+            const buffer = new ArrayBuffer(numBytes);
             const view = new DataView(buffer);
-            let offset = 0;
-
-            // Helper function to write a string
-            const writeString = (s) => {
-                for (let i = 0; i < s.length; i++) {
-                    view.setUint8(offset++, s.charCodeAt(i));
-                }
-            };
             
-            // Helper function to write the PCM data
-            const writePCMData = () => {
-                // Max value for integer scaling (2^n-1)
-                const maxVal = Math.pow(2, bitDepth - (format === 1 ? 1 : 0)); 
+            let byteIndex = 0;
+            let bitPosition = 0;
+            let currentByte = 0;
 
-                for (let i = 0; i < pcmData.length; i++) {
-                    let sample = pcmData[i];
+            for (let i = 0; i < numSamples; i++) {
+                const input = analogSamples[i];
 
-                    if (format === 3) { // 32-bit Float
-                        view.setFloat32(offset, sample, true);
-                        offset += 4;
-                    } else { // Integer formats (8, 16, 24)
-                        if (bitDepth === 8) { // 8-bit unsigned
-                            // Map [-1, 1] to [0, 255]
-                            let val = Math.round((sample + 1.0) * 127.5);
-                            view.setUint8(offset++, val);
-                        } else if (bitDepth === 16) {
-                            let val = Math.round(sample * maxVal);
-                            view.setInt16(offset, val, true);
-                            offset += 2;
-                        } else if (bitDepth === 24) {
-                            let val = Math.round(sample * maxVal);
-                            // Write 24-bit value manually (little-endian)
-                            view.setUint8(offset++, val & 0xFF);
-                            view.setUint8(offset++, (val >> 8) & 0xFF);
-                            view.setUint8(offset++, (val >> 16) & 0xFF);
-                        }
-                    }
+                // 1st-Order Sigma-Delta Modulation
+                integrator += input;
+                let outputBit;
+                
+                if (integrator >= 0) {
+                    outputBit = 1;
+                    integrator -= 1.0;
+                } else {
+                    outputBit = 0;
+                    integrator += 1.0;
                 }
-            };
 
-            // RIFF chunk
-            writeString('RIFF'); // Chunk ID
-            view.setUint32(offset, 36 + dataLength, true); // Chunk Size
-            offset += 4;
-            writeString('WAVE'); // Format
+                // Pack the bit (LSB first for simplicity, typical PDM is MSB)
+                if (outputBit === 1) {
+                    currentByte |= (1 << bitPosition);
+                }
 
-            // FMT sub-chunk
-            writeString('fmt '); // Sub-chunk 1 ID
-            view.setUint32(offset, 16, true); // Sub-chunk 1 Size (16 for PCM)
-            offset += 4;
-            view.setUint16(offset, format, true); // Audio Format (1=PCM, 3=Float)
-            offset += 2;
-            view.setUint16(offset, numChannels, true); // Num Channels (Mono)
-            offset += 2;
-            view.setUint32(offset, sampleRate, true); // Sample Rate
-            offset += 4;
-            view.setUint32(offset, byteRate, true); // Byte Rate
-            offset += 4;
-            view.setUint16(offset, blockAlign, true); // Block Align
-            offset += 2;
-            view.setUint16(offset, bitDepth, true); // Bits Per Sample
-            offset += 2;
+                bitPosition++;
 
-            // DATA sub-chunk
-            writeString('data'); // Sub-chunk 2 ID
-            view.setUint32(offset, dataLength, true); // Sub-chunk 2 Size
-            offset += 4;
+                if (bitPosition >= 8) {
+                    view.setUint8(byteIndex, currentByte);
+                    byteIndex++;
+                    currentByte = 0;
+                    bitPosition = 0;
+                }
+            }
             
-            writePCMData();
+            // Write the last, partially filled byte
+            if (bitPosition > 0) {
+                view.setUint8(byteIndex, currentByte);
+            }
 
             return buffer;
         }
 
-        /** Decodes a WAV file ArrayBuffer into an array of normalized Float32Arrays (one per channel). */
-        function decodeWAV(wavArrayBuffer) {
-            const view = new DataView(wavArrayBuffer);
+        async function handleGeneratePDM() {
+            setStatus("Generating PDM signal...");
+            try {
+                const type = document.getElementById('signalType').value;
+                const freq = parseFloat(document.getElementById('signalFreq').value);
+                const rate = parseFloat(document.getElementById('pdmRate').value);
+                const duration = parseFloat(document.getElementById('duration').value);
+
+                if (isNaN(freq) || isNaN(rate) || isNaN(duration) || rate <= 0 || duration <= 0) {
+                    setStatus("Invalid input values.", true);
+                    return;
+                }
+
+                const analogSamples = generateAnalogSignal(type, freq, rate, duration);
+                const pdmBitstream = samplesToPDM(analogSamples);
+
+                downloadFile(pdmBitstream, `${type}-${freq}Hz_r${rate}Hz.bin`, 'application/octet-stream');
+                setStatus(`Successfully generated and downloaded PDM binary file for ${type}.`);
+            } catch (error) {
+                setStatus(`Error during PDM generation: ${error.message}`, true);
+            }
+        }
+
+
+        // --- 2. PDM TO WAV CONVERSION ---
+
+        /**
+         * Decimates and filters a raw PDM bitstream into a standard PCM Float32Array.
+         * This uses a Sinc1 filter (Moving Average).
+         * @param {ArrayBuffer} pdmBuffer - Raw PDM bitstream data.
+         * @param {number} R - Decimation factor.
+         * @returns {Float32Array} PCM samples (-1.0 to 1.0).
+         */
+        function pdmToPcm(pdmBuffer, R) {
+            const view = new DataView(pdmBuffer);
+            const totalBytes = pdmBuffer.byteLength;
+            const totalPDMbits = totalBytes * 8;
+            
+            const pcmSamples = [];
+            let currentSum = 0;
+            let bitCount = 0;
+            let pcmSampleCounter = 0;
+
+            // Iterate through every bit in the PDM stream
+            for (let i = 0; i < totalBytes; i++) {
+                const byte = view.getUint8(i);
+                
+                // Read 8 bits from the byte
+                for (let j = 0; j < 8; j++) {
+                    if (pcmSampleCounter >= totalPDMbits) break;
+
+                    // Get the bit value (LSB first packing assumed)
+                    const bit = (byte >> j) & 1; 
+
+                    // Convert bit (0 or 1) to bipolar value (-1.0 or 1.0)
+                    // The Sinc filter will integrate these bipolar values.
+                    currentSum += (bit * 2.0 - 1.0); // 0 -> -1.0, 1 -> 1.0
+
+                    bitCount++;
+
+                    // Decimate: When we have R bits, create one PCM sample
+                    if (bitCount >= R) {
+                        // Normalize the accumulated sum and scale to PCM range (-1.0 to 1.0)
+                        const pcmValue = currentSum / R; 
+                        pcmSamples.push(pcmValue);
+
+                        // Reset filter state
+                        currentSum = 0;
+                        bitCount = 0;
+                    }
+                    pcmSampleCounter++;
+                }
+            }
+
+            return new Float32Array(pcmSamples);
+        }
+
+        /**
+         * Writes a WAV file header and data chunk.
+         * @param {Float32Array} pcmData - PCM samples (-1.0 to 1.0).
+         * @param {number} sampleRate - Final PCM sample rate.
+         * @param {number} bitDepth - Output bit depth (16 or 32).
+         * @param {number} formatCode - WAV Format Code (1=PCM Int, 3=IEEE Float).
+         * @returns {ArrayBuffer} The complete WAV file binary data.
+         */
+        function encodeWav(pcmData, sampleRate, bitDepth, formatCode) {
+            const numChannels = 1;
+            const bytesPerSample = bitDepth / 8;
+            const numSamples = pcmData.length;
+            
+            // Total size of the data chunk
+            const dataSize = numSamples * numChannels * bytesPerSample;
+            // Total file size (36 bytes for header + dataSize)
+            const fileSize = 36 + dataSize; 
+            
+            // Create the buffer (44 bytes for header + data size)
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
             let offset = 0;
 
-            // Helper to read a string
-            const readString = (len) => {
-                let s = '';
-                for (let i = 0; i < len; i++) {
-                    s += String.fromCharCode(view.getUint8(offset++));
-                }
-                return s;
-            };
+            // RIFF Chunk (0 - 11)
+            writeString('RIFF'); // Chunk ID (0-3)
+            view.setUint32(offset, fileSize, true); offset += 4; // Chunk Size (4-7)
+            writeString('WAVE'); // Format (8-11)
+            
+            // FMT Chunk (12 - 35)
+            writeString('fmt '); // Sub-chunk 1 ID (12-15)
+            view.setUint32(offset, 16, true); offset += 4; // Sub-chunk 1 size (16-19) - 16 for PCM/Float
+            view.setUint16(offset, formatCode, true); offset += 2; // Audio format (20-21) - 1=PCM, 3=IEEE Float
+            view.setUint16(offset, numChannels, true); offset += 2; // Channels (22-23)
+            view.setUint32(offset, sampleRate, true); offset += 4; // Sample Rate (24-27)
+            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; // Byte Rate (28-31)
+            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; // Block Align (32-33)
+            view.setUint16(offset, bitDepth, true); offset += 2; // Bit Depth (34-35)
 
-            // RIFF check
-            if (readString(4) !== 'RIFF') throw new Error('Invalid WAV file: missing RIFF tag.');
-            view.getUint32(offset, true); // Chunk Size
-            offset += 4;
-            if (readString(4) !== 'WAVE') throw new Error('Invalid WAV file: missing WAVE tag.');
+            // DATA Chunk (36 - end)
+            writeString('data'); // Sub-chunk 2 ID (36-39)
+            view.setUint32(offset, dataSize, true); offset += 4; // Sub-chunk 2 Size (40-43)
 
-            // Find FMT chunk
-            while (readString(4) !== 'fmt ') {
-                const chunkSize = view.getUint32(offset, true);
-                offset += 4 + chunkSize;
-                if (offset >= wavArrayBuffer.byteLength) throw new Error('WAV file error: fmt chunk not found.');
-                offset -= 8; // Backtrack to read chunk ID
-                readString(4); // Consume ID again
-            }
-
-            const fmtSize = view.getUint32(offset, true);
-            offset += 4;
-            const audioFormat = view.getUint16(offset, true);
-            offset += 2;
-            const numChannels = view.getUint16(offset, true);
-            offset += 2;
-            const sampleRate = view.getUint32(offset, true);
-            offset += 4;
-            view.getUint32(offset, true); // Byte Rate
-            offset += 4;
-            view.getUint16(offset, true); // Block Align
-            offset += 2;
-            const bitDepth = view.getUint16(offset, true);
-            offset += 2;
-            offset += fmtSize - 16; // Skip any extra format bytes
-
-            // Find DATA chunk
-            while (readString(4) !== 'data') {
-                const chunkSize = view.getUint32(offset, true);
-                offset += 4 + chunkSize;
-                if (offset >= wavArrayBuffer.byteLength) throw new Error('WAV file error: data chunk not found.');
-                offset -= 8; // Backtrack to read chunk ID
-                readString(4); // Consume ID again
-            }
-
-            const dataSize = view.getUint32(offset, true);
-            offset += 4;
-
-            const bytesPerSample = bitDepth / 8;
-            const numSamples = dataSize / (numChannels * bytesPerSample);
-            const pcmData = new Array(numChannels).fill(0).map(() => new Float32Array(numSamples));
-
-            // Helper to read a sample and normalize it to [-1.0, 1.0]
-            const readSample = () => {
-                let sample;
-                if (audioFormat === 1) { // PCM Integer
-                    if (bitDepth === 8) { // 8-bit unsigned
-                        sample = view.getUint8(offset) / 127.5 - 1.0;
-                        offset += 1;
-                    } else if (bitDepth === 16) {
-                        sample = view.getInt16(offset, true) / 32768.0;
-                        offset += 2;
-                    } else if (bitDepth === 24) { // 24-bit signed
-                        let val = (view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16));
-                        // Sign extend 24-bit
-                        if (val & 0x800000) val |= 0xFF000000;
-                        sample = val / 8388608.0; // 2^23
-                        offset += 3;
-                    } else if (bitDepth === 32) { // 32-bit signed
-                        sample = view.getInt32(offset, true) / 2147483648.0; // 2^31
-                        offset += 4;
-                    } else {
-                        throw new Error(`Unsupported PCM bit depth: ${bitDepth}`);
-                    }
-                } else if (audioFormat === 3) { // Float
-                    if (bitDepth === 32) {
-                        sample = view.getFloat32(offset, true);
-                        offset += 4;
-                    } else {
-                        throw new Error(`Unsupported Float bit depth: ${bitDepth}`);
-                    }
-                } else {
-                    throw new Error(`Unsupported audio format: ${audioFormat}`);
-                }
-                return sample;
-            };
-
-            // Read the actual data
+            // PCM Data (44 - end)
             for (let i = 0; i < numSamples; i++) {
-                for (let j = 0; j < numChannels; j++) {
-                    pcmData[j][i] = readSample();
+                let sample = pcmData[i];
+                // Clamp sample to the valid range [-1, 1]
+                sample = Math.max(-1, Math.min(1, sample));
+                
+                if (formatCode === 1) { // 16-bit Signed Integer (PCM)
+                    const scale = 32767; // Max value for 16-bit signed int
+                    view.setInt16(offset, sample * scale, true);
+                    offset += 2; // 2 bytes
+                } else if (formatCode === 3) { // 32-bit IEEE Floating Point
+                    view.setFloat32(offset, sample, true);
+                    offset += 4; // 4 bytes
                 }
             }
+            
+            return buffer;
 
-            return { pcmData, sampleRate, numChannels };
-        }
-
-
-        // --- Microphone Recording Logic ---
-
-        function toggleSignalInputs() {
-            const isMic = document.getElementById('signalType').value === 'mic';
-            document.getElementById('synthetic-controls').style.display = isMic ? 'none' : 'grid';
-            document.getElementById('duration-control').style.display = isMic ? 'none' : 'block';
-            document.getElementById('generateBtnText').textContent = isMic ? 'Start Recording' : 'Generate & Convert to PDM';
-            document.getElementById('stopBtn').style.display = 'none'; // Ensure stop is hidden initially
-        }
-
-        async function startRecording() {
-            if (!audioContext) {
-                 // Ensure AudioContext is initialized before accessing mic
-                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            function writeString(s) {
+                for (let i = 0; i < s.length; i++) {
+                    view.setUint8(offset++, s.charCodeAt(i));
+                }
             }
-            if (audioContext.state === 'suspended') {
-                 await audioContext.resume();
+        }
+
+        async function handlePdmToWav() {
+            setStatus("Starting PDM to WAV conversion...");
+            const fileInput = document.getElementById('pdmFile');
+            const R = parseInt(document.getElementById('decimationFactor').value);
+            const inputPdmRate = parseFloat(document.getElementById('inputPdmRate').value);
+            const bitDepthInput = document.getElementById('outputBitDepth').value;
+            
+            if (fileInput.files.length === 0) {
+                setStatus("Please select a PDM binary file.", true);
+                return;
+            }
+            if (isNaN(R) || R < 2) {
+                setStatus("Invalid Decimation Factor (R). Must be 2 or greater.", true);
+                return;
+            }
+            if (isNaN(inputPdmRate) || inputPdmRate <= 0) {
+                setStatus("Invalid PDM Rate.", true);
+                return;
             }
 
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Determine output format
+                let bitDepth;
+                let formatCode; // 1 for PCM, 3 for IEEE Float
                 
-                // Create a MediaStreamAudioSourceNode
-                const source = audioContext.createMediaStreamSource(mediaStream);
-                
-                // Create a ScriptProcessorNode (deprecated, but simplest for cross-browser in this context)
-                const bufferSize = 4096;
-                recorder = audioContext.createScriptProcessor(bufferSize, 1, 1);
-                
-                recordingBuffer = [];
-                
-                recorder.onaudioprocess = (e) => {
-                    // Get the mono input data
-                    const inputData = e.inputBuffer.getChannelData(0);
-                    // Copy the data to the recording buffer
-                    recordingBuffer.push(new Float32Array(inputData));
-                };
-                
-                // Connect the nodes
-                source.connect(recorder);
-                recorder.connect(audioContext.destination);
+                if (bitDepthInput === '32f') {
+                    bitDepth = 32;
+                    formatCode = 3;
+                } else { // Default to 16-bit
+                    bitDepth = 16;
+                    formatCode = 1;
+                }
 
-                document.getElementById('generateBtn').style.display = 'none';
-                document.getElementById('stopBtn').style.display = 'flex';
-                setStatus("Recording live microphone input... Click 'Stop Recording' when finished.", false);
-
-            } catch (err) {
-                setStatus(`Could not access microphone: ${err.message}. Please check permissions.`, true);
-                toggleSpinner('spinner1', false);
-            }
-        }
-
-        async function stopRecording(isConversionTriggered) {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-
-            if (recorder) {
-                recorder.disconnect();
-                recorder = null;
-            }
-            
-            document.getElementById('generateBtn').style.display = 'flex';
-            document.getElementById('stopBtn').style.display = 'none';
-
-            if (isConversionTriggered && recordingBuffer && recordingBuffer.length > 0) {
-                setStatus("Stopping recording and compiling PCM data...");
-                toggleSpinner('spinner1', true);
+                const pdmBuffer = await fileInput.files[0].arrayBuffer();
                 
-                try {
-                    // Combine all buffer segments into one Float32Array
-                    const totalLength = recordingBuffer.reduce((acc, arr) => acc + arr.length, 0);
-                    const pcmData = new Float32Array(totalLength);
-                    let offset = 0;
-                    for (const buffer of recordingBuffer) {
-                        pcmData.set(buffer, offset);
-                        offset += buffer.length;
-                    }
+                const pcmSamples = pdmToPcm(pdmBuffer, R);
+                const pcmRate = Math.floor(inputPdmRate / R);
 
-                    recordingBuffer = null; // Clear buffer for next recording
-                    
-                    // The microphone input rate is audioContext.sampleRate
-                    const sourceRate = audioContext.sampleRate;
-                    
-                    // Convert PCM to PDM and save/plot
-                    await convertPCMToPDM(pcmData, sourceRate, `mic_recording`);
-                
-                } catch (error) {
-                    setStatus(`Error during mic PCM processing: ${error.message}`, true);
+                if (pcmSamples.length === 0) {
+                    setStatus("No PCM samples could be generated. PDM file might be too short or invalid.", true);
+                    return;
                 }
                 
-                toggleSpinner('spinner1', false);
-            } else if (isConversionTriggered) {
-                setStatus("Recording stopped. No audio data was captured.", true);
+                const wavBuffer = encodeWav(pcmSamples, pcmRate, bitDepth, formatCode);
+                
+                downloadFile(wavBuffer, `decoded_pdm_r${R}_${pcmRate}Hz_${bitDepth}bit.wav`, 'audio/wav');
+                setStatus(`Successfully converted PDM to WAV. PCM Sample Rate: ${pcmRate} Hz, Bit Depth: ${bitDepth} (Format ${formatCode}).`);
+
+            } catch (error) {
+                setStatus(`Error during PDM to WAV conversion: ${error.message}`, true);
             }
         }
 
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-             // Initialize AudioContext on first user interaction (browser requirement)
-            document.addEventListener('click', () => {
-                if (!audioContext) {
-                    // Start in suspended state
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    // Auto-resume if needed
-                    if (audioContext.state === 'suspended') {
-                         audioContext.resume();
-                    }
+        // --- 3. WAV TO PDM CONVERSION ---
+
+        async function handleWavToPdm() {
+            setStatus("Starting WAV to PDM conversion...");
+            const fileInput = document.getElementById('wavFile');
+            const OSR = parseInt(document.getElementById('osr').value);
+
+            if (fileInput.files.length === 0) {
+                setStatus("Please select a WAV file.", true);
+                return;
+            }
+            if (isNaN(OSR) || OSR < 2) {
+                setStatus("Invalid Oversampling Ratio (OSR). Must be 2 or greater.", true);
+                return;
+            }
+
+            try {
+                // 1. Decode WAV file using Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const fileArrayBuffer = await fileInput.files[0].arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(fileArrayBuffer);
+
+                const sourceRate = audioBuffer.sampleRate;
+                const pdmRate = sourceRate * OSR;
+                const sourceData = audioBuffer.getChannelData(0); // Use the first channel
+
+                // 2. Resample the PCM data to the PDM rate
+                setStatus(`Resampling PCM (${sourceRate}Hz) to PDM rate (${pdmRate}Hz)...`);
+                const resampleRatio = pdmRate / sourceRate;
+                const newLength = Math.ceil(sourceData.length * resampleRatio);
+                const resampledData = new Float32Array(newLength);
+
+                for (let i = 0; i < newLength; i++) {
+                    // Linear interpolation for resampling
+                    const oldIndex = i / resampleRatio;
+                    const floorIndex = Math.floor(oldIndex);
+                    const ceilIndex = Math.min(sourceData.length - 1, floorIndex + 1);
+                    const frac = oldIndex - floorIndex;
+
+                    const sampleA = sourceData[floorIndex];
+                    const sampleB = sourceData[ceilIndex];
+
+                    resampledData[i] = sampleA + (sampleB - sampleA) * frac;
                 }
-            }, { once: true });
-            
-            toggleSignalInputs(); // Set initial visibility based on default option
-            
-            // Initial clear plot and information update
-            plotSignal(new Float32Array(0), 1); 
-            
-            // Re-plot on window resize to ensure responsiveness
-            window.addEventListener('resize', () => plotSignal(new Float32Array(0), 1));
-        });
+
+                // 3. Convert resampled PCM to PDM bitstream
+                setStatus("Applying Sigma-Delta Modulation...");
+                // Note: The input samples must be within -1.0 to 1.0, which AudioBuffer data is.
+                const pdmBitstream = samplesToPDM(resampledData);
+
+                downloadFile(pdmBitstream, `encoded_wav_osr${OSR}_${pdmRate}Hz.bin`, 'application/octet-stream');
+                setStatus(`Successfully converted WAV to PDM binary. PDM Sample Rate: ${pdmRate} Hz.`);
+
+            } catch (error) {
+                setStatus(`Error during WAV to PDM conversion: ${error.message}`, true);
+            }
+        }
     </script>
 </body>
 </html>
