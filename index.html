@@ -35,7 +35,7 @@
         </h1>
         <p id="status-message" class="text-center text-lg font-medium h-6"></p>
 
-        <!-- Main Grid Layout: Restored 3 columns -->
+        <!-- Main Grid Layout: 3 columns -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             <!-- 1. PDM Signal Generation (Synthetic and Mic) -->
@@ -68,11 +68,13 @@
                     <!-- Added oninput for dynamic PDM rate calculation -->
                     <input type="number" id="micOsr" value="64" min="2" step="2" oninput="updateMicRates()" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                     <p class="text-xs text-gray-400">PDM Rate = Mic Rate * OSR</p>
-                    
+
                     <!-- DISPLAY AREA FOR MIC PROPERTIES -->
                     <div id="micProperties" class="mt-4 p-3 rounded-lg bg-gray-800 text-sm border border-indigo-600/50">
                         <p><strong>Base Sample Rate:</strong> <span id="micBaseRate">N/A</span> Hz</p>
                         <p><strong>Calculated PDM Rate:</strong> <span id="micCalculatedPdmRate">N/A</span> Hz</p>
+                        <!-- NEW LINE FOR CHANNEL INFO -->
+                        <p><strong>Input Channels:</strong> <span id="micChannels">N/A</span></p> 
                         <p class="text-xs text-gray-400 mt-1">Rates update on OSR change or Mic selection.</p>
                     </div>
                 </div>
@@ -104,7 +106,7 @@
                     <label for="inputPdmRate" class="block text-sm font-medium text-gray-300">Input PDM Rate (Hz)</label>
                     <input type="number" id="inputPdmRate" value="3076864" min="100000" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <!-- NEW BIT DEPTH SELECTION -->
+                <!-- BIT DEPTH SELECTION -->
                 <div class="space-y-3">
                     <label for="outputBitDepth" class="block text-sm font-medium text-gray-300">PCM Output Bit Depth</label>
                     <select id="outputBitDepth" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
@@ -139,14 +141,16 @@
             </div>
 
         </div>
+
     </div>
 
     <!-- JavaScript Implementation -->
     <script>
         const statusMessage = document.getElementById('status-message');
-        
-        // Global variable to cache the base sample rate after initial detection
+
+        // Global variables to cache microphone properties
         let micBaseRate = 0;
+        let micChannelCount = 0; // NEW: Cache channel count
 
         /**
          * Generic file downloader function.
@@ -178,30 +182,54 @@
         }
         
         /**
-         * Initializes AudioContext to get the actual microphone sample rate.
+         * Initializes AudioContext and MediaStream to detect microphone sample rate and channel count.
          */
-        async function detectMicBaseRate() {
-            // Return cached rate if already detected
-            if (micBaseRate > 0) return micBaseRate; 
-            
+        async function detectMicProperties() {
+            // Only detect if needed
+            if (micBaseRate > 0 && micChannelCount > 0) return { rate: micBaseRate, channels: micChannelCount };
+
             let context;
+            let stream;
+            let result = { rate: 44100, channels: 1 }; // Default fallback
+
             try {
-                // Creating an AudioContext is enough to get the system's preferred rate
+                // 1. Detect base rate via AudioContext
                 context = new (window.AudioContext || window.webkitAudioContext)();
-                micBaseRate = context.sampleRate;
-                
+                result.rate = context.sampleRate;
+
+                // 2. Detect channel count via MediaStream
+                // Request minimal audio stream access just to check settings
+                stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+
+                const tracks = stream.getAudioTracks();
+                if (tracks.length > 0) {
+                    const settings = tracks[0].getSettings();
+                    // Fallback to 1 if settings don't provide channelCount (unlikely for modern browsers)
+                    result.channels = settings.channelCount || 1; 
+                }
+
             } catch (e) {
-                console.error("Could not create AudioContext to detect rate:", e);
-                micBaseRate = 44100; // Fallback standard rate
+                // This typically means the user denied microphone access or it's unavailable.
+                console.warn("Could not detect microphone properties (rate or channels). Using fallbacks (44.1kHz, Mono).", e);
+                // Fallback result is already set
             } finally {
-                // Attempt to close the context if it was successfully created and is not already closed
+                // Stop stream immediately
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                // Attempt to close the context
                 if (context && context.state !== 'closed' && context.close) {
-                     // Note: We don't need to await the close() since we already got the rate.
                      context.close().catch(e => console.error("Error closing context:", e));
                 }
             }
-            return micBaseRate;
+            
+            // Cache the results before returning
+            micBaseRate = result.rate;
+            micChannelCount = result.channels;
+
+            return result;
         }
+
 
         /**
          * Updates the displayed base and calculated PDM rates for the Mic input section.
@@ -210,16 +238,26 @@
             const OSR = parseInt(document.getElementById('micOsr').value);
             const micBaseRateElement = document.getElementById('micBaseRate');
             const micCalculatedPdmRateElement = document.getElementById('micCalculatedPdmRate');
+            const micChannelsElement = document.getElementById('micChannels'); // NEW
 
-            // Wait for detection if not yet done
-            if (micBaseRate === 0) {
+            // 1. Wait for properties detection if not yet done or if 'mic' is selected
+            if (micBaseRate === 0 || micChannelCount === 0 || document.getElementById('signalType').value === 'mic') {
                 micBaseRateElement.textContent = "Detecting...";
-                await detectMicBaseRate();
+                micChannelsElement.textContent = "Detecting...";
+                const properties = await detectMicProperties();
+                micBaseRate = properties.rate;
+                micChannelCount = properties.channels;
             }
 
             const baseRate = micBaseRate;
+            const channels = micChannelCount; 
+
             micBaseRateElement.textContent = baseRate.toLocaleString();
             
+            let channelText = `${channels} (${channels === 1 ? 'Mono' : 'Stereo/Multi'})`;
+            if (channels === 0) channelText = 'Unknown (Access Denied)';
+            micChannelsElement.textContent = channelText;
+
             if (!isNaN(OSR) && OSR >= 2 && baseRate > 0) {
                 const pdmRate = baseRate * OSR;
                 micCalculatedPdmRateElement.textContent = Math.round(pdmRate).toLocaleString();
@@ -239,17 +277,16 @@
                 synthParams.classList.add('hidden');
                 micParams.classList.remove('hidden');
                 button.textContent = "Start Recording & Download PDM";
-                
+
                 // Display Mic properties on selection and ensure dynamic updates
                 updateMicRates();
-                
+
             } else {
                 synthParams.classList.remove('hidden');
                 micParams.classList.add('hidden');
                 button.textContent = "Generate & Download PDM (.bin)";
             }
         }
-
 
         // --- CORE PDM FUNCTIONS ---
 
@@ -264,11 +301,11 @@
         function generateAnalogSignal(type, freq, rate, duration) {
             const numSamples = Math.floor(rate * duration);
             const samples = new Float32Array(numSamples);
-            
+
             for (let i = 0; i < numSamples; i++) {
                 const t = i / rate; // time
                 const amplitude = 0.5; // Use 0.5 to avoid clipping in the SDM
-                
+
                 switch (type) {
                     case 'sine':
                         samples[i] = amplitude * Math.sin(2 * Math.PI * freq * t);
@@ -295,32 +332,35 @@
          * @returns {ArrayBuffer} Raw PDM bitstream packed into bytes.
          */
         function samplesToPDM(analogSamples) {
+             // Reset integrator for unipolar S-D
             let integrator = 0.0;
             const numSamples = analogSamples.length;
             const numBytes = Math.ceil(numSamples / 8);
             const buffer = new ArrayBuffer(numBytes);
             const view = new DataView(buffer);
-            
+
             let byteIndex = 0;
-            let bitPosition = 0;
+            let bitPosition = 0; // LSB first
             let currentByte = 0;
 
             for (let i = 0; i < numSamples; i++) {
-                const input = analogSamples[i];
+                // Scale input from [-1, 1] to [0, 1] for unipolar S-D
+                const inputScaled = (analogSamples[i] / 2.0) + 0.5; 
 
-                // 1st-Order Sigma-Delta Modulation
-                integrator += input;
+                // 1. Integration
+                integrator += inputScaled;
                 let outputBit;
-                
-                if (integrator >= 0) {
+
+                // 2. Quantization (0 or 1)
+                if (integrator >= 0.5) { // Quantize to 1
                     outputBit = 1;
-                    integrator -= 1.0;
-                } else {
+                    integrator -= 1.0; // Feedback is 1.0
+                } else { // Quantize to 0
                     outputBit = 0;
-                    integrator += 1.0;
+                    // Feedback is 0.0 (already done)
                 }
 
-                // Pack the bit (LSB first for simplicity, typical PDM is MSB)
+                // Pack the bit (LSB first)
                 if (outputBit === 1) {
                     currentByte |= (1 << bitPosition);
                 }
@@ -334,7 +374,7 @@
                     bitPosition = 0;
                 }
             }
-            
+
             // Write the last, partially filled byte
             if (bitPosition > 0) {
                 view.setUint8(byteIndex, currentByte);
@@ -348,39 +388,47 @@
         async function handleGeneratePDM() {
             const type = document.getElementById('signalType').value;
             const duration = parseFloat(document.getElementById('duration').value);
-            
+
             if (isNaN(duration) || duration <= 0) {
                 setStatus("Invalid Duration value.", true);
                 return;
             }
 
             if (type === 'mic') {
-                await generatePDMFromMic(duration);
+                await generatePDMFromMic(duration); 
             } else {
                 await generatePDMFromSynth(type, duration);
             }
         }
-        
+
         async function generatePDMFromSynth(type, duration) {
-            setStatus(`Generating PDM signal for ${type}...`);
+            setStatus(`Synthesizing Analog Signal...`);
             try {
                 const freq = parseFloat(document.getElementById('signalFreq').value);
                 const rate = parseFloat(document.getElementById('pdmRate').value); // This is the PDM rate
-
+                
                 if (isNaN(freq) || isNaN(rate) || rate <= 0) {
                     setStatus("Invalid synthetic signal parameters.", true);
                     return;
                 }
+                if (freq > rate / 2) {
+                    setStatus(`Warning: Signal Frequency (${freq} Hz) exceeds Nyquist limit of PDM Rate / 2 (${rate / 2} Hz). PDM fidelity will be low.`, true);
+                }
 
                 const analogSamples = generateAnalogSignal(type, freq, rate, duration);
+                const totalSamples = analogSamples.length;
+
+                setStatus(`Synthesizing Analog Signal (Total Samples: ${totalSamples.toLocaleString()}). Applying Sigma-Delta Modulation...`, false);
+
+                // Proceed with PDM conversion and download
                 const pdmBitstream = samplesToPDM(analogSamples);
 
                 downloadFile(pdmBitstream, `${type}-${freq}Hz_r${rate}Hz.bin`, 'application/octet-stream');
-                
-                // FIX: Update the Input PDM Rate in Section 2
+
+                // Update the Input PDM Rate in Section 2
                 document.getElementById('inputPdmRate').value = Math.floor(rate);
 
-                setStatus(`Successfully generated and downloaded PDM binary file for ${type}.`);
+                setStatus(`Successfully generated PDM binary file for ${type}.`);
             } catch (error) {
                 setStatus(`Error during PDM generation: ${error.message}`, true);
             }
@@ -408,35 +456,47 @@
 
             try {
                 // 1. Get Microphone Stream
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Note: Constraints here ensure mono acquisition if the device/browser supports it
+                stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
+
                 const sourceRate = audioContext.sampleRate;
                 const pdmRate = sourceRate * OSR;
+                
+                // Although we requested mono (channelCount: 1), we check the actual channels
+                const actualChannels = stream.getAudioTracks()[0].getSettings().channelCount || 1; 
 
-                setStatus(`Mic acquired! Frequency: ${sourceRate} Hz. Target PDM Rate: ${pdmRate} Hz. Recording for ${duration} seconds...`);
-                
+                if (actualChannels > 1) {
+                     // If the device ignores our mono request, we only process the first channel later
+                     console.warn(`Device provided ${actualChannels} channels despite requesting 1. Only processing the first channel.`);
+                }
+
+                setStatus(`Mic acquired! Base PCM Rate: ${sourceRate.toLocaleString()} Hz. Target PDM Rate: ${pdmRate.toLocaleString()} Hz (OSR=${OSR}). Recording for ${duration} seconds...`);
+
+                // Create source from the stream
                 source = audioContext.createMediaStreamSource(stream);
-                
+
                 // Use a ScriptProcessorNode for sample access (for this demo's simplicity)
                 const bufferSize = 4096;
-                processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-                
+                // Output is forced to mono (1) for this PDM pipeline
+                processor = audioContext.createScriptProcessor(bufferSize, actualChannels, 1); 
+
                 let samplesRecorded = 0;
                 const totalSamplesToRecord = Math.ceil(sourceRate * duration);
 
                 processor.onaudioprocess = (e) => {
                     if (samplesRecorded >= totalSamplesToRecord) return;
 
+                    // IMPORTANT: Only take the first channel's data for conversion
                     const inputData = e.inputBuffer.getChannelData(0);
-                    
+
                     const remaining = totalSamplesToRecord - samplesRecorded;
                     const takeCount = Math.min(inputData.length, remaining);
 
                     const chunk = inputData.slice(0, takeCount);
                     recordedSamples.push(chunk);
                     samplesRecorded += takeCount;
-                    
+
                     const progress = Math.min(100, Math.floor((samplesRecorded / totalSamplesToRecord) * 100));
                     button.textContent = `Recording... ${progress}%`;
 
@@ -451,11 +511,11 @@
 
                 // Timeout as a failsafe
                 setTimeout(() => {
-                    if (stream) { 
+                    if (stream) {
                         stopRecording();
                         processRecording(recordedSamples, sourceRate, OSR, pdmRate);
                     }
-                }, duration * 1000 + 500); 
+                }, duration * 1000 + 500);
 
             } catch (error) {
                 setStatus(`Error accessing microphone: ${error.message}. Please check permissions.`, true);
@@ -484,7 +544,7 @@
 
             async function processRecording(recordedSamples, sourceRate, OSR, pdmRate) {
                 setStatus("Processing recorded audio: Combining and resampling...");
-                
+
                 if (recordedSamples.length === 0) {
                     setStatus("No audio was recorded.", true);
                     return;
@@ -498,7 +558,7 @@
                     combinedData.set(arr, offset);
                     offset += arr.length;
                 });
-                
+
                 // 3. Resample (Interpolation)
                 const resampleRatio = pdmRate / sourceRate;
                 const newLength = Math.ceil(combinedData.length * resampleRatio);
@@ -516,14 +576,14 @@
 
                     resampledData[i] = sampleA + (sampleB - sampleA) * frac;
                 }
-                
+
                 // 4. Convert resampled PCM to PDM bitstream
-                setStatus("Applying Sigma-Delta Modulation and generating PDM binary...");
+                setStatus(`Applying Sigma-Delta Modulation and generating PDM binary... Total bits (samples): ${newLength.toLocaleString()}`);
                 const pdmBitstream = samplesToPDM(resampledData);
 
                 downloadFile(pdmBitstream, `mic_osr${OSR}_${pdmRate}Hz.bin`, 'application/octet-stream');
-                setStatus(`Successfully captured and converted Mic to PDM binary. PDM Sample Rate: ${pdmRate} Hz.`);
-                
+                setStatus(`Successfully captured and converted Mic to PDM binary. PDM Sample Rate: ${pdmRate.toLocaleString()} Hz.`);
+
                 // Set the calculated PDM rate into the Section 2 input for PDM-to-WAV conversion
                 document.getElementById('inputPdmRate').value = Math.floor(pdmRate);
             }
@@ -539,7 +599,7 @@
             const view = new DataView(pdmBuffer);
             const totalBytes = pdmBuffer.byteLength;
             const totalPDMbits = totalBytes * 8;
-            
+
             const pcmSamples = [];
             let currentSum = 0;
             let bitCount = 0;
@@ -547,17 +607,17 @@
 
             for (let i = 0; i < totalBytes; i++) {
                 const byte = view.getUint8(i);
-                
+
                 for (let j = 0; j < 8; j++) {
                     if (pcmSampleCounter >= totalPDMbits) break;
 
-                    const bit = (byte >> j) & 1; 
+                    const bit = (byte >> j) & 1;
                     currentSum += (bit * 2.0 - 1.0); // 0 -> -1.0, 1 -> 1.0
 
                     bitCount++;
 
                     if (bitCount >= R) {
-                        const pcmValue = currentSum / R; 
+                        const pcmValue = currentSum / R;
                         pcmSamples.push(pcmValue);
 
                         currentSum = 0;
@@ -574,42 +634,42 @@
          * Writes a WAV file header and data chunk.
          */
         function encodeWav(pcmData, sampleRate, bitDepth, formatCode) {
-            const numChannels = 1;
+            const numChannels = 1; // Since PDM is inherently mono for this process
             const bytesPerSample = bitDepth / 8;
             const numSamples = pcmData.length;
-            
+
             // Note: For 24-bit, bytesPerSample will be 3, which is correctly used here.
             const dataSize = numSamples * numChannels * bytesPerSample;
-            const fileSize = 36 + dataSize; 
-            
+            const fileSize = 36 + dataSize;
+
             const buffer = new ArrayBuffer(44 + dataSize);
             const view = new DataView(buffer);
             let offset = 0;
 
             // RIFF Chunk
-            writeString('RIFF'); 
-            view.setUint32(offset, fileSize, true); offset += 4; 
-            writeString('WAVE'); 
-            
+            writeString('RIFF');
+            view.setUint32(offset, fileSize, true); offset += 4;
+            writeString('WAVE');
+
             // FMT Chunk
-            writeString('fmt '); 
-            view.setUint32(offset, 16, true); offset += 4; 
-            view.setUint16(offset, formatCode, true); offset += 2; 
-            view.setUint16(offset, numChannels, true); offset += 2; 
-            view.setUint32(offset, sampleRate, true); offset += 4; 
-            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; 
-            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; 
-            view.setUint16(offset, bitDepth, true); offset += 2; 
+            writeString('fmt ');
+            view.setUint32(offset, 16, true); offset += 4;
+            view.setUint16(offset, formatCode, true); offset += 2;
+            view.setUint16(offset, numChannels, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4;
+            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2;
+            view.setUint16(offset, bitDepth, true); offset += 2;
 
             // DATA Chunk
-            writeString('data'); 
-            view.setUint32(offset, dataSize, true); offset += 4; 
+            writeString('data');
+            view.setUint32(offset, dataSize, true); offset += 4;
 
             // PCM Data
             for (let i = 0; i < numSamples; i++) {
                 let sample = pcmData[i];
                 sample = Math.max(-1, Math.min(1, sample)); // Clamp to -1.0 to 1.0
-                
+
                 if (formatCode === 1) { // PCM (8, 16, 24-bit)
                     if (bitDepth === 8) { // 8-bit Unsigned Integer
                         const scale = 127.5;
@@ -619,11 +679,11 @@
                     } else if (bitDepth === 16) { // 16-bit Signed Integer
                         const scale = 32767;
                         view.setInt16(offset, Math.round(sample * scale), true);
-                        offset += 2; 
+                        offset += 2;
                     } else if (bitDepth === 24) { // 24-bit Signed Integer
                         const scale = 8388607; // 2^23 - 1
                         const scaledSample = Math.round(sample * scale);
-                        
+
                         // Write 3 bytes (Little Endian)
                         // Byte 0 (LSB)
                         view.setUint8(offset, scaledSample & 0xFF);
@@ -635,10 +695,10 @@
                     }
                 } else if (formatCode === 3) { // 32-bit IEEE Floating Point
                     view.setFloat32(offset, sample, true);
-                    offset += 4; 
+                    offset += 4;
                 }
             }
-            
+
             return buffer;
 
             function writeString(s) {
@@ -654,7 +714,7 @@
             const R = parseInt(document.getElementById('decimationFactor').value);
             const inputPdmRate = parseFloat(document.getElementById('inputPdmRate').value);
             const bitDepthInput = document.getElementById('outputBitDepth').value;
-            
+
             if (fileInput.files.length === 0) {
                 setStatus("Please select a PDM binary file.", true);
                 return;
@@ -673,11 +733,12 @@
                 } else {
                     bitDepth = parseInt(bitDepthInput, 10);
                     // 8-bit, 16-bit, and 24-bit are standard PCM format
-                    formatCode = 1; 
+                    formatCode = 1;
                 }
-                
+
                 const pdmBuffer = await fileInput.files[0].arrayBuffer();
-                
+                const totalPDMbits = pdmBuffer.byteLength * 8;
+
                 const pcmSamples = pdmToPcm(pdmBuffer, R);
                 const pcmRate = Math.floor(inputPdmRate / R);
 
@@ -685,11 +746,11 @@
                     setStatus("No PCM samples could be generated.", true);
                     return;
                 }
-                
+
                 const wavBuffer = encodeWav(pcmSamples, pcmRate, bitDepth, formatCode);
-                
+
                 downloadFile(wavBuffer, `decoded_pdm_r${R}_${pcmRate}Hz_${bitDepth}bit.wav`, 'audio/wav');
-                setStatus(`Successfully converted PDM to WAV. PCM Sample Rate: ${pcmRate} Hz, Bit Depth: ${bitDepth}.`);
+                setStatus(`Successfully converted PDM to WAV. PDM Bits: ${totalPDMbits.toLocaleString()}. PCM Sample Rate: ${pcmRate.toLocaleString()} Hz, PCM Samples: ${pcmSamples.length.toLocaleString()}, Bit Depth: ${bitDepth}.`);
 
             } catch (error) {
                 setStatus(`Error during PDM to WAV conversion: ${error.message}`, true);
@@ -722,18 +783,20 @@
 
                 const sourceRate = audioBuffer.sampleRate;
                 const pdmRate = sourceRate * OSR;
-                
+
                 // Check if mono or just take the first channel if multi-channel
                 let sourceData;
                 if (audioBuffer.numberOfChannels > 1) {
-                    console.warn("Input WAV file is multi-channel. Using only the first channel for PDM conversion.");
-                    sourceData = audioBuffer.getChannelData(0); 
+                    console.warn(`Input WAV file has ${audioBuffer.numberOfChannels} channels. Only using the first channel for PDM conversion.`);
+                    sourceData = audioBuffer.getChannelData(0);
                 } else {
                     sourceData = audioBuffer.getChannelData(0);
                 }
 
                 // 2. Resample the PCM data to the PDM rate
-                setStatus(`Resampling PCM (${sourceRate}Hz) to PDM rate (${pdmRate}Hz)...`);
+                setStatus(`Original PCM Rate: ${sourceRate.toLocaleString()} Hz. Total Samples: ${sourceData.length.toLocaleString()}.`);
+                setStatus(`Resampling PCM to PDM Rate: ${pdmRate.toLocaleString()} Hz (OSR=${OSR})...`);
+
                 const resampleRatio = pdmRate / sourceRate;
                 const newLength = Math.ceil(sourceData.length * resampleRatio);
                 const resampledData = new Float32Array(newLength);
@@ -752,11 +815,11 @@
                 }
 
                 // 3. Convert resampled PCM to PDM bitstream
-                setStatus("Applying Sigma-Delta Modulation...");
+                setStatus(`Applying Sigma-Delta Modulation... Total PDM bits (samples): ${newLength.toLocaleString()}`);
                 const pdmBitstream = samplesToPDM(resampledData);
 
                 downloadFile(pdmBitstream, `encoded_wav_osr${OSR}_${pdmRate}Hz.bin`, 'application/octet-stream');
-                setStatus(`Successfully converted WAV to PDM binary. PDM Sample Rate: ${pdmRate} Hz.`);
+                setStatus(`Successfully converted WAV to PDM binary. PDM Sample Rate: ${pdmRate.toLocaleString()} Hz.`);
 
             } catch (error) {
                 setStatus(`Error during WAV to PDM conversion: ${error.message}`, true);
