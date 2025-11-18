@@ -31,7 +31,7 @@
 
     <div class="w-full max-w-6xl mx-auto space-y-8">
         <h1 class="text-4xl font-extrabold text-indigo-400 mb-6 text-center">
-            PDM & WAV Processing Toolbox
+            PDM & WAV Signal Processing Toolbox
         </h1>
         <p id="status-message" class="text-center text-lg font-medium h-6"></p>
 
@@ -81,7 +81,7 @@
 
                 <div class="space-y-3">
                     <label for="duration" class="block text-sm font-medium text-gray-300">Duration (seconds)</label>
-                    <input type="number" id="duration" value="10.0" min="0.1" step="0.1" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="number" id="duration" value="1.0" min="0.1" step="0.1" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <button id="generatePdmButton" onclick="handleGeneratePDM()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-md">
                     Generate & Download PDM (.bin)
@@ -150,7 +150,7 @@
 
         // Global variables to cache microphone properties
         let micBaseRate = 0;
-        let micChannelCount = 0; // NEW: Cache channel count
+        let micChannelCount = 0; // Cache channel count
 
         /**
          * Generic file downloader function.
@@ -238,7 +238,7 @@
             const OSR = parseInt(document.getElementById('micOsr').value);
             const micBaseRateElement = document.getElementById('micBaseRate');
             const micCalculatedPdmRateElement = document.getElementById('micCalculatedPdmRate');
-            const micChannelsElement = document.getElementById('micChannels'); // NEW
+            const micChannelsElement = document.getElementById('micChannels'); 
 
             // 1. Wait for properties detection if not yet done or if 'mic' is selected
             if (micBaseRate === 0 || micChannelCount === 0 || document.getElementById('signalType').value === 'mic') {
@@ -382,7 +382,7 @@
 
             return buffer;
         }
-
+        
         // --- SECTION 1: MAIN HANDLER (SYNTH & MIC) ---
 
         async function handleGeneratePDM() {
@@ -558,7 +558,7 @@
                     combinedData.set(arr, offset);
                     offset += arr.length;
                 });
-
+                
                 // 3. Resample (Interpolation)
                 const resampleRatio = pdmRate / sourceRate;
                 const newLength = Math.ceil(combinedData.length * resampleRatio);
@@ -578,7 +578,7 @@
                 }
 
                 // 4. Convert resampled PCM to PDM bitstream
-                setStatus(`Applying Sigma-Delta Modulation and generating PDM binary... Total bits (samples): ${newLength.toLocaleString()}`);
+                setStatus(`Applying Sigma-Delta Modulation... Total PDM bits (samples): ${newLength.toLocaleString()}`);
                 const pdmBitstream = samplesToPDM(resampledData);
 
                 downloadFile(pdmBitstream, `mic_osr${OSR}_${pdmRate}Hz.bin`, 'application/octet-stream');
@@ -732,7 +732,6 @@
                     formatCode = 3; // IEEE Float
                 } else {
                     bitDepth = parseInt(bitDepthInput, 10);
-                    // 8-bit, 16-bit, and 24-bit are standard PCM format
                     formatCode = 1;
                 }
 
@@ -741,7 +740,7 @@
 
                 const pcmSamples = pdmToPcm(pdmBuffer, R);
                 const pcmRate = Math.floor(inputPdmRate / R);
-
+                
                 if (pcmSamples.length === 0) {
                     setStatus("No PCM samples could be generated.", true);
                     return;
@@ -792,7 +791,7 @@
                 } else {
                     sourceData = audioBuffer.getChannelData(0);
                 }
-
+                
                 // 2. Resample the PCM data to the PDM rate
                 setStatus(`Original PCM Rate: ${sourceRate.toLocaleString()} Hz. Total Samples: ${sourceData.length.toLocaleString()}.`);
                 setStatus(`Resampling PCM to PDM Rate: ${pdmRate.toLocaleString()} Hz (OSR=${OSR})...`);
