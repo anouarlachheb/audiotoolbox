@@ -102,6 +102,17 @@
                     <input type="number" id="decimationFactor" value="64" min="2" step="2" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
                     <p class="text-xs text-gray-400">PCM Rate = PDM Rate / R</p>
                 </div>
+                
+                <!-- NEW DECIMATION ALGORITHM SELECT -->
+                <div class="space-y-3">
+                    <label for="decimationAlgo" class="block text-sm font-medium text-gray-300">Decimation Algorithm</label>
+                    <select id="decimationAlgo" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="sinc1" selected>Sinc-1 (Moving Average)</option>
+                        <option value="sinc2">Sinc-2 (Cascaded Average)</option>
+                    </select>
+                    <p class="text-xs text-gray-400">Higher order filters suppress more quantization noise.</p>
+                </div>
+
                 <div class="space-y-3">
                     <label for="inputPdmRate" class="block text-sm font-medium text-gray-300">Input PDM Rate (Hz)</label>
                     <input type="number" id="inputPdmRate" value="3076864" min="100000" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500">
@@ -593,9 +604,9 @@
         // --- 2. PDM TO WAV CONVERSION (DECIMATION) ---
 
         /**
-         * Decimates and filters a raw PDM bitstream into a standard PCM Float32Array.
+         * Decimates and filters a raw PDM bitstream into a standard PCM Float32Array using a Sinc-1 (Moving Average) filter.
          */
-        function pdmToPcm(pdmBuffer, R) {
+        function decimateSinc1(pdmBuffer, R) {
             const view = new DataView(pdmBuffer);
             const totalBytes = pdmBuffer.byteLength;
             const totalPDMbits = totalBytes * 8;
@@ -612,11 +623,13 @@
                     if (pcmSampleCounter >= totalPDMbits) break;
 
                     const bit = (byte >> j) & 1;
-                    currentSum += (bit * 2.0 - 1.0); // 0 -> -1.0, 1 -> 1.0
+                    // Bipolar conversion: 0 -> -1.0, 1 -> 1.0
+                    currentSum += (bit * 2.0 - 1.0); 
 
                     bitCount++;
 
                     if (bitCount >= R) {
+                        // Decimation: Average the R bits
                         const pcmValue = currentSum / R;
                         pcmSamples.push(pcmValue);
 
@@ -626,9 +639,54 @@
                     pcmSampleCounter++;
                 }
             }
-
+            // Ensure no leftover samples are added if not a full block
             return new Float32Array(pcmSamples);
         }
+        
+        /**
+         * Decimates and filters a raw PDM bitstream using a Sinc-2 approximation (Cascaded Sinc-1).
+         * This performs Sinc-1 and then applies a simple 3-point moving average to the output for further smoothing/noise suppression.
+         * The Sinc-2 filter provides a steeper roll-off compared to Sinc-1.
+         */
+        function decimateSinc2(pdmBuffer, R) {
+             // Stage 1: Sinc-1 Decimation
+             // Note: In a true Sinc-2, the effective decimation factor is R^2. Here we implement a simplified, cascaded approach.
+             const sinc1Samples = decimateSinc1(pdmBuffer, R);
+
+             // Stage 2: Apply a simple 3-point moving average filter 
+             // This approximates the second integration stage of a Sinc-2 filter structure.
+             const kernelSize = 3; 
+             const pcmSamples = new Float32Array(sinc1Samples.length);
+
+             for (let i = 0; i < sinc1Samples.length; i++) {
+                 let sum = 0;
+                 let count = 0;
+
+                 // Simple 3-point average
+                 for (let k = -Math.floor(kernelSize / 2); k <= Math.floor(kernelSize / 2); k++) {
+                     const index = i + k;
+                     if (index >= 0 && index < sinc1Samples.length) {
+                         sum += sinc1Samples[index];
+                         count++;
+                     }
+                 }
+                 pcmSamples[i] = sum / count;
+             }
+
+             return pcmSamples;
+        }
+
+        /**
+         * Wrapper function to select the appropriate decimation algorithm.
+         */
+        function pdmToPcm(pdmBuffer, R, algorithm) {
+            if (algorithm === 'sinc2') {
+                return decimateSinc2(pdmBuffer, R);
+            }
+            // Default to sinc1
+            return decimateSinc1(pdmBuffer, R);
+        }
+
 
         /**
          * Writes a WAV file header and data chunk.
@@ -714,6 +772,7 @@
             const R = parseInt(document.getElementById('decimationFactor').value);
             const inputPdmRate = parseFloat(document.getElementById('inputPdmRate').value);
             const bitDepthInput = document.getElementById('outputBitDepth').value;
+            const decimationAlgo = document.getElementById('decimationAlgo').value; // NEW
 
             if (fileInput.files.length === 0) {
                 setStatus("Please select a PDM binary file.", true);
@@ -738,7 +797,8 @@
                 const pdmBuffer = await fileInput.files[0].arrayBuffer();
                 const totalPDMbits = pdmBuffer.byteLength * 8;
 
-                const pcmSamples = pdmToPcm(pdmBuffer, R);
+                // UPDATED CALL to pass the algorithm
+                const pcmSamples = pdmToPcm(pdmBuffer, R, decimationAlgo);
                 const pcmRate = Math.floor(inputPdmRate / R);
                 
                 if (pcmSamples.length === 0) {
@@ -748,8 +808,8 @@
 
                 const wavBuffer = encodeWav(pcmSamples, pcmRate, bitDepth, formatCode);
 
-                downloadFile(wavBuffer, `decoded_pdm_r${R}_${pcmRate}Hz_${bitDepth}bit.wav`, 'audio/wav');
-                setStatus(`Successfully converted PDM to WAV. PDM Bits: ${totalPDMbits.toLocaleString()}. PCM Sample Rate: ${pcmRate.toLocaleString()} Hz, PCM Samples: ${pcmSamples.length.toLocaleString()}, Bit Depth: ${bitDepth}.`);
+                downloadFile(wavBuffer, `decoded_pdm_${decimationAlgo}_r${R}_${pcmRate}Hz_${bitDepth}bit.wav`, 'audio/wav');
+                setStatus(`Successfully converted PDM to WAV using ${decimationAlgo.toUpperCase()} filter. PDM Bits: ${totalPDMbits.toLocaleString()}. PCM Sample Rate: ${pcmRate.toLocaleString()} Hz, PCM Samples: ${pcmSamples.length.toLocaleString()}, Bit Depth: ${bitDepth}.`);
 
             } catch (error) {
                 setStatus(`Error during PDM to WAV conversion: ${error.message}`, true);
